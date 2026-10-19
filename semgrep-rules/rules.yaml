@@ -1,0 +1,24 @@
+# Custom SAST rules for the Vote Counting & Tabulation subsystem (SR-21).
+# Each rule maps to a rule in SECURE_CODING_STANDARD.md. Tests: rules.ts (run: semgrep --test semgrep-rules/)
+rules:
+  - id: no-eval
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: eval() and new Function() run arbitrary code. Banned by SECURE_CODING_STANDARD.md rule 3.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: no-insecure-random
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Math.random() is predictable. Use crypto.randomInt() for the ballot shuffle (SR-03) and crypto.randomBytes()/randomUUID() for tokens (standard rule 4).
+    pattern: Math.random()
+
+  - id: no-jwt-decode-without-verify
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: jwt.decode() does not check the signature. Use jwt.verify() (standard rule 7).
+    pattern-either:
+      - pattern: jwt.decode(...)
+      - pattern: jsonwebtoken.decode(...)
