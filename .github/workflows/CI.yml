@@ -1,3 +1,7 @@
+# CI — SR-21 (SAST, dependency audit, unit tests), SR-16 (secret scanning), SR-14 (required check)
+# Owner: Dhruv
+# Branch protection should require ONE check: "CI passed". It fails if any job below fails,
+# so new services are covered automatically without editing branch protection.
 name: CI
 
 on:
@@ -6,55 +10,133 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read   # least privilege: jobs can only read the repo
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  GITLEAKS_VERSION: "8.18.4"
+  SEMGREP_VERSION: "1.85.0"
+
 jobs:
   discover:
+    name: Find services
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.find.outputs.services }}
+      services: ${{ steps.list.outputs.services }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Find service folders with a package.json
-        id: find
+      - id: list
+        name: List services/* folders that have a package.json
         run: |
-          services=$(for d in services/*/; do
-            name=$(basename "$d")
-            if [ -f "${d}package.json" ]; then
-              echo "$name"
-            fi
-          done | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "Found services: $services"
+          list=""
+          for d in services/*/; do
+            [ -f "${d}package.json" ] && list="${list}\"$(basename "$d")\","
+          done
+          services="[${list%,}]"
+          echo "Found: $services"
           echo "services=$services" >> "$GITHUB_OUTPUT"
 
-  test:
+  service-tests:
+    name: Tests (${{ matrix.service }})
     needs: discover
-    if: ${{ needs.discover.outputs.services != '[]' }}
+    if: needs.discover.outputs.services != '[]'
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: false   # one broken service doesn't hide results from the others
       matrix:
-        service: ${{ fromJson(needs.discover.outputs.services) }}
+        service: ${{ fromJSON(needs.discover.outputs.services) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
-      - name: Install dependencies
-        working-directory: services/${{ matrix.service }}
+      - name: Require a committed lockfile (SR-06 pinned dependencies)
+        run: |
+          if [ ! -f package-lock.json ]; then
+            echo "::error::services/${{ matrix.service }} has no package-lock.json. Run 'npm install' locally and commit the lockfile."
+            exit 1
+          fi
+
+      - name: Install exact locked versions
         run: npm ci
 
-      - name: Build (if a build script exists)
-        working-directory: services/${{ matrix.service }}
+      - name: Dependency audit (high and critical, production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build / type-check (if the service defines a build script)
         run: npm run build --if-present
 
-      - name: Run tests
-        working-directory: services/${{ matrix.service }}
+      - name: Unit tests (Jest)
         run: npm test
 
-      - name: Dependency audit (informational — does not fail the build)
-        working-directory: services/${{ matrix.service }}
-        run: npm audit --audit-level=high || true
+  secret-scan:
+    name: Secret scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history, so a secret deleted in a later commit is still caught
+
+      - name: Install Gitleaks (pinned, checksum verified)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$tarball" "$base/$tarball"
+          curl -sSfL -o checksums.txt "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing checksums.txt
+          tar xzf "$tarball" gitleaks
+          sudo mv gitleaks /usr/local/bin/
+          rm -f "$tarball" checksums.txt
+
+      - name: Self-test — scanner flags a planted token, passes a clean file
+        run: bash tests/security/gitleaks_selftest.sh
+
+      - name: Scan full git history
+        run: gitleaks detect --source=. --redact --verbose
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep (pinned)
+        run: pip install "semgrep==${SEMGREP_VERSION}"
+
+      - name: Self-test — custom rules catch what they should
+        run: pip install "semgrep==${SEMGREP_VERSION}" "setuptools==80.10.2"
+        
+      - name: Report all findings (informational, does not block)
+        run: semgrep scan --config p/typescript --config p/nodejs --config semgrep-rules/rules.yaml --exclude semgrep-rules --metrics off || true
+
+      - name: Block on high-severity findings
+        run: semgrep scan --config p/typescript --config p/nodejs --config semgrep-rules/rules.yaml --exclude semgrep-rules --metrics off --severity ERROR --error
+
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [discover, service-tests, secret-scan, sast]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        run: |
+          echo "Results: ${{ join(needs.*.result, ', ') }}"
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            exit 1
+          fi
