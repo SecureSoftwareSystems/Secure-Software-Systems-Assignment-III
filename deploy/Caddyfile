@@ -1,0 +1,45 @@
+# SR-13 — TLS termination for the Vote Counting & Tabulation services.
+# Owner: Shubham. Caddy v2. Replace example.org with the real domain.
+#
+# Caddy gets and renews certificates automatically (ACME / Let's Encrypt) and
+# redirects every http:// request to https:// with a 308.
+# The Node services listen on 127.0.0.1 only, so they can't be reached
+# without going through this proxy.
+
+{
+	email ops@example.org
+}
+
+# Shared settings for every site: modern TLS only, security headers.
+(secure) {
+	tls {
+		protocols tls1.2 tls1.3
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		-Server
+	}
+}
+
+# Public results (SR-11). Results-api must run with TRUST_PROXY=1 so rate limits see the real client IP.
+results.example.org {
+	import secure
+	reverse_proxy 127.0.0.1:4003
+}
+
+# Staff-only console: auth (Rita), vote-integrity (Sidhant). Restricted to the election office network.
+console.example.org {
+	import secure
+	@outside not remote_ip 10.20.0.0/16
+	respond @outside "Forbidden" 403
+	handle_path /auth/* {
+		reverse_proxy 127.0.0.1:4001
+	}
+	handle_path /integrity/* {
+		reverse_proxy 127.0.0.1:4002
+	}
+	respond 404
+}
