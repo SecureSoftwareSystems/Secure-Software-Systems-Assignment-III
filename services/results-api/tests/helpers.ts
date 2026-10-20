@@ -3,6 +3,16 @@ import jwt from 'jsonwebtoken';
 import { createApp, type AppDeps } from '../src/app';
 import { canonicalJson, type CountResult, type ResultsSource, type VerifiedResult } from '../src/resultsSource';
 import type { Role } from '../src/auth';
+import { openDatabase } from '../src/db';
+import { FieldCipher } from '../src/crypto/fieldEncryption';
+import { ApiClientStore } from '../src/clients';
+
+export const DATA_KEY = 'a1'.repeat(32); // test-only 256-bit key
+
+export function makeClients() {
+  const db = openDatabase();
+  return { db, store: new ApiClientStore(db, new FieldCipher(DATA_KEY)) };
+}
 
 export const JWT_KEY = 'test-only-jwt-signing-key-0123456789abcdef';
 export const RELEASE_AT = new Date('2026-10-24T18:00:00+11:00');
@@ -37,6 +47,7 @@ export function makeApp(over: Partial<AppDeps> & { at?: Date } = {}) {
   const at = over.at ?? AFTER;
   return createApp({
     source: sourceOf(verified()),
+    clients: makeClients().store,
     jwtSigningKey: JWT_KEY,
     releaseAt: RELEASE_AT,
     now: () => at,

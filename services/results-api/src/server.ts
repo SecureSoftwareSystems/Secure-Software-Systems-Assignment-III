@@ -1,10 +1,19 @@
 import { loadConfig } from './config';
 import { createApp } from './app';
 import { VoteIntegrityClient } from './resultsSource';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { openDatabase } from './db';
+import { FieldCipher } from './crypto/fieldEncryption';
+import { ApiClientStore } from './clients';
 
 const config = loadConfig(); // throws, and the service won't start, if config is missing or weak
 
+if (config.dbPath !== ':memory:') mkdirSync(dirname(config.dbPath), { recursive: true });
+const clients = new ApiClientStore(openDatabase(config.dbPath), new FieldCipher(config.dataEncryptionKey));
+
 const app = createApp({
+  clients,
   source: new VoteIntegrityClient(config.voteIntegrityUrl, config.jwtSigningKey),
   jwtSigningKey: config.jwtSigningKey,
   releaseAt: config.releaseAt,

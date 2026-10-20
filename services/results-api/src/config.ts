@@ -10,6 +10,9 @@ export interface Config {
   voteIntegrityUrl: string;
   /** Number of reverse-proxy hops in front of the service (SR-13), so rate limiting sees the real client IP. */
   trustProxy: number;
+  /** AES-256 key for personal data at rest (SR-20), 64 hex characters. */
+  dataEncryptionKey: string;
+  dbPath: string;
 }
 
 const MIN_SECRET_LENGTH = 32;
@@ -19,6 +22,12 @@ function requireSecret(env: NodeJS.ProcessEnv, name: string): string {
   if (!value || value.length < MIN_SECRET_LENGTH) {
     throw new Error(`${name} must be set and at least ${MIN_SECRET_LENGTH} characters (see .env.example)`);
   }
+  return value;
+}
+
+function requireHexKey(env: NodeJS.ProcessEnv, name: string): string {
+  const value = env[name];
+  if (!value || !/^[0-9a-fA-F]{64}$/.test(value)) throw new Error(`${name} must be 64 hex characters (256 bits)`);
   return value;
 }
 
@@ -43,5 +52,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     releaseAt: parseReleaseAt(env.RESULTS_RELEASE_AT),
     voteIntegrityUrl: env.VOTE_INTEGRITY_URL ?? 'http://127.0.0.1:4002',
     trustProxy,
+    dataEncryptionKey: requireHexKey(env, 'DATA_ENCRYPTION_KEY'),
+    dbPath: env.RESULTS_DB_PATH ?? 'data/results-api.db',
   };
 }
