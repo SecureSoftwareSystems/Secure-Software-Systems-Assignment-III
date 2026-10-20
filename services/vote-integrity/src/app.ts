@@ -6,19 +6,32 @@ import { BallotStore } from './ballots';
 import { ContestError, ContestStore } from './contest';
 import { ReplayError, ReplayGuard, hashToken } from './tokens/replayGuard';
 import { ballotSchema, describeIssues, openContestSchema } from './validation';
+import { hashBallotSet, verifiedCount } from './counting/comparator';
+import { countIrvEngineA } from './counting/irvEngineA';
+import { countIrvEngineB } from './counting/irvEngineB';
+import { ResultStore } from './counting/results';
+import type { CountingEngine } from './counting/types';
 
 export interface AppDeps {
   db: DB;
   jwtSigningKey: string;
   auditHmacKey: string;
+  /** Only overridden in tests, to prove the comparator catches a faulty engine. */
+  engines?: { a: CountingEngine; b: CountingEngine };
 }
 
-export function createApp({ db, jwtSigningKey, auditHmacKey }: AppDeps) {
+export function createApp({
+  db,
+  jwtSigningKey,
+  auditHmacKey,
+  engines = { a: countIrvEngineA, b: countIrvEngineB },
+}: AppDeps) {
   const app = express();
   const audit = new AuditLog(db);
   const contest = new ContestStore(db);
   const ballots = new BallotStore(db);
   const replayGuard = new ReplayGuard(db, ballots);
+  const results = new ResultStore(db);
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
@@ -97,6 +110,65 @@ export function createApp({ db, jwtSigningKey, auditHmacKey }: AppDeps) {
       }
       throw err;
     }
+  });
+
+  // ---- SR-10 counting ----
+  app.post('/contest/close', auth, requireRole('admin'), (req, res) => {
+    try {
+      contest.close();
+      audit.append(req.user!.sub, 'CONTEST_CLOSED', { ballotCount: ballots.count() });
+      res.json(contest.get());
+    } catch (err) {
+      if (err instanceof ContestError) {
+        res.status(409).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  app.post('/count', auth, requireRole('delegate', 'admin'), (req, res) => {
+    const current = contest.get();
+    if (current.status !== 'closed') {
+      res.status(409).json({ error: 'ballot intake must be closed before counting' });
+      return;
+    }
+
+    // SR-03: the engines only ever see anonymised, shuffled ballots.
+    const batch = ballots.batchForCounting();
+    if (batch.length === 0) {
+      res.status(409).json({ error: 'no ballots to count' });
+      return;
+    }
+    const ballotSetHash = hashBallotSet(batch);
+    audit.append(req.user!.sub, 'COUNT_STARTED', { ballotCount: batch.length, ballotSetHash });
+
+    const outcome = verifiedCount(current.candidates, batch, engines.a, engines.b);
+
+    if (outcome.status === 'MISMATCH') {
+      // Fail safe: no result is stored or returned, and the halt is on the tamper-evident record.
+      audit.append(req.user!.sub, 'COUNT_MISMATCH', { discrepancies: outcome.discrepancies.slice(0, 20) });
+      res.status(409).json({ status: 'HALTED', error: 'counting engines disagree; result withheld', discrepancies: outcome.discrepancies });
+      return;
+    }
+
+    results.save(outcome.result, outcome.resultHash, ballotSetHash);
+    const entry = audit.append(req.user!.sub, 'COUNT_VERIFIED', {
+      winner: outcome.result.winner,
+      rounds: outcome.result.rounds.length,
+      resultHash: outcome.resultHash,
+      ballotSetHash,
+    });
+    res.json({ ...outcome, ballotSetHash, auditSeq: entry.seq });
+  });
+
+  app.get('/results/latest', auth, requireRole('delegate', 'auditor', 'admin'), (_req, res) => {
+    const latest = results.latest();
+    if (!latest) {
+      res.status(404).json({ error: 'no verified result yet' });
+      return;
+    }
+    res.json(latest);
   });
 
   // Unknown routes and unexpected errors: generic messages only, no stack traces.
