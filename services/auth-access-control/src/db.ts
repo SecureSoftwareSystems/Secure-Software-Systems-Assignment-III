@@ -45,7 +45,7 @@ export function createDb(path: string = ":memory:"): Database.Database {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       decided_at TEXT,
       CHECK (
-        (status = 'pending' AND checker-id IS NULL AND decided-at IS NULL)
+        (status = 'pending' AND checker_id IS NULL AND decided_at IS NULL)
         OR
         (status IN ('approved', 'rejected') AND checker_id IS NOT NULL AND decided_at IS NOT NULL)
       )
