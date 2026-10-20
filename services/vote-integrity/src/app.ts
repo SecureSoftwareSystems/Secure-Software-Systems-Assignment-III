@@ -2,6 +2,10 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import type { DB } from './db';
 import { AuditLog } from './audit/auditLog';
 import { authenticate, requireRole } from './auth';
+import { BallotStore } from './ballots';
+import { ContestError, ContestStore } from './contest';
+import { ReplayError, ReplayGuard, hashToken } from './tokens/replayGuard';
+import { ballotSchema, describeIssues, openContestSchema } from './validation';
 
 export interface AppDeps {
   db: DB;
@@ -12,6 +16,9 @@ export interface AppDeps {
 export function createApp({ db, jwtSigningKey, auditHmacKey }: AppDeps) {
   const app = express();
   const audit = new AuditLog(db);
+  const contest = new ContestStore(db);
+  const ballots = new BallotStore(db);
+  const replayGuard = new ReplayGuard(db, ballots);
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
@@ -37,6 +44,59 @@ export function createApp({ db, jwtSigningKey, auditHmacKey }: AppDeps) {
     const cp = audit.checkpoint(auditHmacKey);
     audit.append(req.user!.sub, 'AUDIT_CHECKPOINT_TAKEN', { seq: cp.seq, hash: cp.hash });
     res.status(201).json(cp);
+  });
+
+  // ---- Contest setup ----
+  app.get('/contest', auth, (_req, res) => {
+    res.json(contest.get());
+  });
+
+  app.post('/contest', auth, requireRole('admin'), (req, res) => {
+    const parsed = openContestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid request', issues: describeIssues(parsed.error) });
+      return;
+    }
+    try {
+      const opened = contest.open(parsed.data.candidates);
+      audit.append(req.user!.sub, 'CONTEST_OPENED', { candidates: opened.candidates });
+      res.status(201).json(opened);
+    } catch (err) {
+      if (err instanceof ContestError) {
+        res.status(409).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  // ---- SR-07 ballot intake with single-use tokens ----
+  // Called by the synthetic ballot feed, which stands in for the voting client.
+  // Accepted ballots are deliberately NOT written to the audit log one by one:
+  // a timestamped, ordered record of each ballot would undo the SR-03 anonymisation.
+  app.post('/ballots', auth, requireRole('admin'), (req, res) => {
+    const current = contest.get();
+    if (current.status !== 'open') {
+      res.status(409).json({ error: 'ballot intake is not open' });
+      return;
+    }
+    const parsed = ballotSchema(current.candidates).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid ballot', issues: describeIssues(parsed.error) });
+      return;
+    }
+    try {
+      replayGuard.accept(parsed.data.token, parsed.data.preferences);
+      res.status(201).json({ accepted: true });
+    } catch (err) {
+      if (err instanceof ReplayError) {
+        // Log a short prefix of the token hash only, enough to investigate, not to identify.
+        audit.append(req.user!.sub, 'BALLOT_REPLAY_REJECTED', { tokenHashPrefix: hashToken(parsed.data.token).slice(0, 12) });
+        res.status(409).json({ error: 'ballot token has already been used' });
+        return;
+      }
+      throw err;
+    }
   });
 
   // Unknown routes and unexpected errors: generic messages only, no stack traces.
