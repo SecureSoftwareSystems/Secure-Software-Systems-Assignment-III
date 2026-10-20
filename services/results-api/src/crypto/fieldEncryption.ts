@@ -54,7 +54,7 @@ export class FieldCipher {
     const tag = raw.subarray(IV_BYTES, IV_BYTES + TAG_BYTES);
     const ct = raw.subarray(IV_BYTES + TAG_BYTES);
     try {
-      const decipher = createDecipheriv('aes-256-gcm', this.key, iv);
+      const decipher = createDecipheriv('aes-256-gcm', this.key, iv, { authTagLength: TAG_BYTES });
       decipher.setAAD(Buffer.from(aad, 'utf8'));
       decipher.setAuthTag(tag);
       return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
