@@ -2,9 +2,12 @@
   "name": "auth-access-control",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+ "scripts": {
+  "build": "tsc",
+  "start": "node dist/server.js",
+  "dev": "ts-node src/server.ts",
+  "test": "jest --runInBand"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
