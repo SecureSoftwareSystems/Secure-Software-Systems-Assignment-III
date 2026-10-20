@@ -4,24 +4,29 @@ import { authenticate, requireRole } from './auth';
 import { IntegrityError, SourceUnavailableError, assertIntegrity, type ResultsSource, type VerifiedResult } from './resultsSource';
 import { fullView, publicView } from './views';
 import { authHeaderSchema, noQuery, upstreamResultSchema, validate } from './validation';
+import type { ApiClientStore } from './clients';
+import { DecryptionError } from './crypto/fieldEncryption';
+import { z } from 'zod';
 
 export interface AppDeps {
   source: ResultsSource;
+  clients: ApiClientStore;
   jwtSigningKey: string;
   releaseAt: Date;
   now?: () => Date;
   trustProxy?: number;
   /** Requests per minute per client. Lowered in tests. */
-  limits?: { public: number; privileged: number };
+  limits?: { public: number; privileged: number; feed?: number };
 }
 
 export function createApp({
   source,
+  clients,
   jwtSigningKey,
   releaseAt,
   now = () => new Date(),
   trustProxy = 0,
-  limits = { public: 60, privileged: 300 },
+  limits = { public: 60, privileged: 300, feed: 120 },
 }: AppDeps) {
   const app = express();
   app.disable('x-powered-by');
@@ -45,10 +50,11 @@ export function createApp({
   };
 
   // ---- SR-11 rate limiting: one budget per client IP, standard RateLimit headers, JSON 429 ----
-  const limiter = (limit: number) =>
+  const limiter = (limit: number, keyGenerator?: (req: Request) => string) =>
     rateLimit({
       windowMs: 60_000,
       limit,
+      ...(keyGenerator ? { keyGenerator } : {}),
       standardHeaders: 'draft-7',
       legacyHeaders: false,
       handler: (_req, res) => {
@@ -106,11 +112,78 @@ export function createApp({
     },
   );
 
+  // ---- SR-20 registered API clients (admin only) ----
+  const safeText = z.string().trim().min(1).max(100).regex(/^[\p{L}\p{N} .,'&()-]+$/u, 'letters, digits and basic punctuation only');
+  const newClientSchema = z
+    .object({ name: safeText, organisation: safeText, contactEmail: z.string().trim().toLowerCase().email().max(254) })
+    .strict();
+  const clientIdParams = z.object({ id: z.string().uuid() }).strict();
+  const adminOnly = [privilegedLimiter, validate({ headers: authHeaderSchema }), auth, requireRole('admin')];
+
+  app.post('/admin/api-clients', ...adminOnly, validate({ query: noQuery, body: newClientSchema }), (req, res) => {
+    const created = clients.create(req.body);
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(201).json({ ...created, note: 'Give this key to the client now. It is not stored and cannot be shown again.' });
+  });
+
+  app.get('/admin/api-clients', ...adminOnly, validate({ query: noQuery }), (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ clients: clients.list() });
+  });
+
+  app.delete('/admin/api-clients/:id', ...adminOnly, validate({ params: clientIdParams, query: noQuery }), (req, res) => {
+    if (!clients.revoke(req.params.id!)) {
+      res.status(404).json({ error: 'no active client with that id' });
+      return;
+    }
+    res.status(204).end();
+  });
+
+  // ---- SR-11 + SR-20 full results feed for registered clients, after release only ----
+  const apiKeyHeader = z.object({ 'x-api-key': z.string().regex(/^rk_[A-Za-z0-9_-]{43}$/, 'invalid API key format') }).passthrough();
+  app.get(
+    '/results/feed',
+    validate({ query: noQuery, headers: apiKeyHeader }),
+    (req, res, next) => {
+      const client = clients.findByKey(String(req.headers['x-api-key']));
+      if (!client) {
+        res.status(401).json({ error: 'unknown or revoked API key' });
+        return;
+      }
+      res.locals.clientId = client.id;
+      next();
+    },
+    limiter(limits.feed ?? 120, (req) => `client:${(req.res?.locals.clientId as string) ?? 'none'}`), // one budget per client, not per IP
+    async (_req, res, next) => {
+      try {
+        if (!isReleased()) {
+          res.setHeader('Cache-Control', 'no-store');
+          res.status(403).json({ status: 'NOT_YET_RELEASED', releaseAt: releaseAt.toISOString() });
+          return;
+        }
+        const latest = await latestVerified();
+        if (!latest) {
+          res.status(404).json({ status: 'NO_RESULT' });
+          return;
+        }
+        res.setHeader('Cache-Control', 'private, max-age=30');
+        res.json({ status: 'RELEASED', ...fullView(latest) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
   app.use((_req, res) => {
     res.status(404).json({ error: 'not found' });
   });
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof DecryptionError) {
+      console.error('[results-api] stored personal data failed to decrypt');
+      res.status(500).json({ error: 'internal error' });
+      return;
+    }
     if (err instanceof IntegrityError) {
       // Never publish a result that doesn't match its hash.
       console.error('[results-api] integrity check failed');
