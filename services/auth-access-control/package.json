@@ -2,12 +2,19 @@
   "name": "auth-access-control",
   "version": "1.0.0",
   "main": "index.js",
- "scripts": {
-  "build": "tsc",
-  "start": "node dist/server.js",
-  "dev": "ts-node src/server.ts",
-  "test": "jest --runInBand"
-},
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "test": "jest --runInBand"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.ts"
+    ]
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
