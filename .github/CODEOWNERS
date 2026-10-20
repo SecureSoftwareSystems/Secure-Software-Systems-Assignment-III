@@ -1,0 +1,8 @@
+# SR-14: changes to these paths need approval from one of the listed owners.
+# Every path has TWO owners, because an author cannot approve their own PR.
+
+/services/auth-access-control/  @amritha-sabu @Dhruv-Kathuria
+/services/vote-integrity/       @uhghgh-907 @Dhruv-Kathuria
+/.github/                       @Dhruv-Kathuria @amritha-sabu
+/semgrep-rules/                 @Dhruv-Kathuria @amritha-sabu
+/SECURE_CODING_STANDARD.md      @Dhruv-Kathuria @amritha-sabu
