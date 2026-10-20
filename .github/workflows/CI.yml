@@ -117,10 +117,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install Semgrep (pinned)
-        run: pip install "semgrep==${SEMGREP_VERSION}"
+        run: pip install "semgrep==${SEMGREP_VERSION}" "setuptools==80.10.2"
 
       - name: Self-test — custom rules catch what they should
-        run: pip install "semgrep==${SEMGREP_VERSION}" "setuptools==80.10.2"
+        run: semgrep --test --metrics off semgrep-rules/
         
       - name: Report all findings (informational, does not block)
         run: semgrep scan --config p/typescript --config p/nodejs --config semgrep-rules/rules.yaml --exclude semgrep-rules --metrics off || true
