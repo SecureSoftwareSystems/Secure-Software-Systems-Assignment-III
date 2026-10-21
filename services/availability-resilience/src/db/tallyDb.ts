@@ -4,7 +4,6 @@ import path from 'path';
 
 export type TallyDb = Database.Database;
 
-// Tally data lives in its own SQLite file, separate from users/exclusions.
 export function openTallyDb(
   dbPath: string = process.env.TALLY_DB_PATH ?? path.join('data', 'tally.db')
 ): TallyDb {

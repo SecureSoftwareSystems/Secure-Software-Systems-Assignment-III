@@ -42,7 +42,7 @@ export function logEvent(entry: LogEntry): void {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.appendFileSync(file, JSON.stringify(record) + '\n');
   } catch (err) {
-    // Logging must never crash the app.
+
     console.error('Logging failed:', err);
   }
 }
