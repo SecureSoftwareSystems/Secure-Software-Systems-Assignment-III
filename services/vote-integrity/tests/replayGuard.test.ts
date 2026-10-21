@@ -5,7 +5,7 @@ import { BallotStore } from '../src/ballots';
 import { ReplayError, ReplayGuard, hashToken } from '../src/tokens/replayGuard';
 import { bearer, makeApp } from './helpers';
 
-const newToken = () => randomBytes(16).toString('base64url'); // 128-bit, 22 chars
+const newToken = () => randomBytes(16).toString('base64url');
 
 describe('SR-07 replay guard (unit)', () => {
   function setup() {
@@ -48,7 +48,7 @@ describe('SR-07 replay guard (unit)', () => {
     expect(() => guard.accept(t, ['A'])).toThrow('disk full');
     expect(guard.isConsumed(t)).toBe(false);
     spy.mockRestore();
-    guard.accept(t, ['A']); // the voter can still submit
+    guard.accept(t, ['A']);
     expect(ballots.count()).toBe(1);
   });
 

@@ -5,7 +5,6 @@ import { CountInputError, type CountingEngine } from '../src/counting/types';
 
 const repeat = (prefs: string[], n: number) => Array.from({ length: n }, () => prefs);
 
-/** Small seeded PRNG for generating test elections reproducibly (tests only; not used for security). */
 function mulberry32(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -47,13 +46,11 @@ describe.each(ENGINES)('SR-10 %s against known results', (_name, count) => {
 
   test('exhausted ballots drop out of the majority calculation', () => {
     const r = count(['A', 'B', 'C'], [...repeat(['A'], 4), ...repeat(['B'], 3), ...repeat(['C'], 2)]);
-    expect(r.winner).toBe('A'); // 4 of the 7 live votes, though only 4 of 9 ballots
+    expect(r.winner).toBe('A');
     expect(r.rounds[1]!.exhausted).toBe(2);
   });
 
   test('ties are broken by countback to an earlier round', () => {
-    // C and B tie on 5 in round 2. In round 1 C had fewer (4 vs 5), so C goes,
-    // even though the list-order fallback alone would have excluded B.
     const r = count(['A', 'C', 'B', 'D'], [
       ...repeat(['A'], 6),
       ...repeat(['B'], 5),

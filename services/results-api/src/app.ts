@@ -90,7 +90,6 @@ export function createApp({
   });
 
   // ---- SR-11 privileged scope: scrutineers and auditors may verify before release ----
-  // Shared team middleware (services/shared-auth): verifies the JWT, then checks the role per route.
   const { authenticate: auth, requireRole } = createServiceAuth(jwtSigningKey);
   app.get(
     '/results/full',

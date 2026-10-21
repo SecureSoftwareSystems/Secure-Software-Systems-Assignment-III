@@ -1,13 +1,6 @@
 import type { AnonymousBallot } from '../shuffle/shuffle';
 import { validateCountInput, type CountResult, type RoundResult } from './types';
 
-/**
- * SR-10 Engine A — "recount from scratch".
- *
- * Every round re-reads every ballot from the top and gives it to its first
- * candidate still in the count. Simple and easy to check by hand; does
- * O(rounds × ballots × preferences) work. Works with candidate names directly.
- */
 export function countIrvEngineA(candidates: readonly string[], ballots: readonly AnonymousBallot[]): CountResult {
   validateCountInput(candidates, ballots);
 
@@ -40,7 +33,6 @@ export function countIrvEngineA(candidates: readonly string[], ballots: readonly
   }
 }
 
-/** Rule R4/R5: fewest votes; ties broken by countback, then last on the candidate list. */
 function pickExclusion(
   candidates: readonly string[],
   current: Record<string, number>,
@@ -56,6 +48,5 @@ function pickExclusion(
   }
 
   if (tied.length === 1) return tied[0]!;
-  // Still tied everywhere: exclude the one listed last on the ballot paper.
   return [...tied].sort((x, y) => candidates.indexOf(y) - candidates.indexOf(x))[0]!;
 }

@@ -19,5 +19,4 @@ export function createServiceAuth(signingKey: string): Auth {
   return createAuth({ jwt, signingKey });
 }
 
-/** Name recorded in the audit log for whoever made the request. */
 export const actor = (user: AuthUser | undefined): string => actorOf(user);

@@ -20,7 +20,6 @@ export const BEFORE = new Date(RELEASE_AT.getTime() - 60_000);
 export const AFTER = new Date(RELEASE_AT.getTime() + 60_000);
 
 export function bearer(role: Role, key = JWT_KEY): string {
-  // Shaped like auth-access-control's login tokens: numeric user id, role, username.
   const ids = { admin: 1, delegate: 2, auditor: 4 } as const;
   return `Bearer ${jwt.sign({ sub: ids[role], role, username: `${role}-1` }, key, { algorithm: 'HS256', expiresIn: '15m' })}`;
 }

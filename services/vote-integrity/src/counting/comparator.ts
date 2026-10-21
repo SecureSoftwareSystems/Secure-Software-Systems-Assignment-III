@@ -5,12 +5,7 @@ import { countIrvEngineA } from './irvEngineA';
 import { countIrvEngineB } from './irvEngineB';
 import { CountInputError, type CountingEngine, type CountResult } from './types';
 
-/**
- * SR-10 — comparator. Runs both engines over the same ballots and only
- * releases a result if they agree on everything: the winner, the number of
- * rounds, and every round's tallies, exhausted count and exclusion. Any
- * difference halts the count.
- */
+// SR-10: a result is released only if both engines agree on everything.
 
 export interface Comparison {
   match: boolean;
@@ -42,10 +37,6 @@ export function hashResult(result: CountResult): string {
   return createHash('sha256').update(canonicalJson(result)).digest('hex');
 }
 
-/**
- * Hash of the ballot SET, independent of order, so auditors can check the
- * same ballots were counted no matter how they were shuffled.
- */
 export function hashBallotSet(ballots: readonly AnonymousBallot[]): string {
   const lines = ballots.map((b) => JSON.stringify(b)).sort();
   return createHash('sha256').update(lines.join('\n')).digest('hex');
@@ -64,7 +55,6 @@ export function verifiedCount(
   const a = runEngine('A', engineA, candidates, ballots);
   const b = runEngine('B', engineB, candidates, ballots);
 
-  // Bad input is rejected the same way by both: report it rather than call it a mismatch.
   if (a.error instanceof CountInputError && b.error instanceof CountInputError) throw a.error;
   if (a.error || b.error) {
     return {

@@ -1,12 +1,5 @@
 import { z } from 'zod';
 
-/**
- * Request schemas for this service. Everything is checked server-side
- * before it reaches the business logic (team's secure coding standard,
- * SR-18): unknown fields are rejected (.strict()), lengths are bounded,
- * and names use a restricted character set.
- */
-
 const candidateName = z
   .string()
   .min(1)
@@ -23,17 +16,12 @@ export const openContestSchema = z
   })
   .strict();
 
-/** Ballot tokens: URL-safe base64 / hex, long enough to be unguessable (>= 128 bits). */
 export const ballotTokenSchema = z
   .string()
   .min(22)
   .max(128)
   .regex(/^[A-Za-z0-9_-]+$/, 'token must be URL-safe characters only');
 
-/**
- * A ballot is a ranked list of candidates (most preferred first). Partial rankings
- * are allowed (optional preferential), duplicates and unknown candidates are not.
- */
 export function ballotSchema(candidates: readonly string[]) {
   const allowed = new Set(candidates);
   return z
@@ -49,11 +37,7 @@ export function ballotSchema(candidates: readonly string[]) {
     .strict();
 }
 
-/**
- * Turns a zod error into short client-facing messages without echoing the input back:
- * zod's "Unrecognized key(s) in object: '<key>'" would repeat whatever field name the
- * caller sent (e.g. a <script> tag), so that case gets a generic message instead.
- */
+// Error messages never echo the caller's input back (no reflected XSS).
 export function describeIssues(err: z.ZodError): string[] {
   return err.issues.map((i) => {
     if (i.code === 'unrecognized_keys') return 'body: unexpected field(s) not allowed';

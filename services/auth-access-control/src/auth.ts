@@ -4,9 +4,6 @@ import type { Request, Response, NextFunction } from "express";
 import Database from "better-sqlite3";
 import { Role, Users } from "./db";
 
-
-// Shared token contract for every service (services/shared-auth): HS256, JWT_SIGNING_KEY, 15-minute expiry.
-// No fallback secret: a missing or short key is an error, not a silent default (SR-16, fail closed).
 import { createAuth, requireSigningKey, type Auth } from "../../shared-auth";
 
 const TOKEN_TTL = "15m";
@@ -53,11 +50,6 @@ export function login(db: Database.Database, username: string, password: string)
   });
 }
 
-/**
- * Express middleware: verifies the bearer token and attaches req.user.
- * The checking itself lives in services/shared-auth so every service enforces exactly the
- * same rules (algorithm pinned to HS256, expiry, known roles). SR-17: the TTL above enforces expiry.
- */
 export function authMiddleware(req: AuthedRequest, res: Response, next: NextFunction) {
   return sharedAuth().authenticate(req, res, next);
 }
