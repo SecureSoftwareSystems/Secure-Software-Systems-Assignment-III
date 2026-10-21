@@ -2,6 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { logEvent } from '../src/logging/logger';
+import { FailedLoginMonitor } from '../src/logging/failedLoginAlert';
 
 let dir: string;
 let logFile: string;
@@ -47,5 +48,31 @@ describe('logger', () => {
     expect(() => logEvent({ event: 'x', outcome: 'success' })).not.toThrow();
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+});
+
+describe('failed login alert', () => {
+  const base = 1_000_000;
+  const warnings = () =>
+    readLog(logFile).filter((e) => e.level === 'WARNING' && e.event === 'failed_login_threshold_exceeded');
+
+  it('does not warn at 5 failures within a minute', () => {
+    const m = new FailedLoginMonitor();
+    for (let i = 0; i < 5; i++) expect(m.record(1, base + i * 1000)).toBe(false);
+    expect(warnings()).toHaveLength(0);
+  });
+
+  it('warns on the 6th failure within a minute', () => {
+    const m = new FailedLoginMonitor();
+    for (let i = 0; i < 5; i++) m.record(1, base + i * 1000);
+    expect(m.record(1, base + 5000)).toBe(true);
+    expect(warnings()).toHaveLength(1);
+    expect(warnings()[0].details).toMatchObject({ attempts: 6, windowSeconds: 60 });
+  });
+
+  it('does not warn when failures are spread beyond the window', () => {
+    const m = new FailedLoginMonitor();
+    for (let i = 0; i < 8; i++) m.record(1, base + i * 20_000);
+    expect(warnings()).toHaveLength(0);
   });
 });
