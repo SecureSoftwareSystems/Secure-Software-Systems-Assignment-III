@@ -1,7 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import type { DB } from './db';
 import { AuditLog } from './audit/auditLog';
-import { authenticate, requireRole } from './auth';
+import { actor, createServiceAuth } from './auth';
 import { BallotStore } from './ballots';
 import { ContestError, ContestStore } from './contest';
 import { ReplayError, ReplayGuard, hashToken } from './tokens/replayGuard';
@@ -40,11 +40,12 @@ export function createApp({
     res.json({ status: 'ok' });
   });
 
-  const auth = authenticate(jwtSigningKey);
+  // Shared team middleware (services/shared-auth): verifies the JWT, then checks the role per route.
+  const { authenticate: auth, requireRole } = createServiceAuth(jwtSigningKey);
 
   // ---- SR-09 audit log ----
   app.get('/audit', auth, requireRole('auditor', 'admin'), (req, res) => {
-    audit.append(req.user!.sub, 'AUDIT_LOG_VIEWED');
+    audit.append(actor(req.user), 'AUDIT_LOG_VIEWED');
     res.json({ entries: audit.entries() });
   });
 
@@ -55,7 +56,7 @@ export function createApp({
 
   app.post('/audit/checkpoint', auth, requireRole('admin'), (req, res) => {
     const cp = audit.checkpoint(auditHmacKey);
-    audit.append(req.user!.sub, 'AUDIT_CHECKPOINT_TAKEN', { seq: cp.seq, hash: cp.hash });
+    audit.append(actor(req.user), 'AUDIT_CHECKPOINT_TAKEN', { seq: cp.seq, hash: cp.hash });
     res.status(201).json(cp);
   });
 
@@ -72,7 +73,7 @@ export function createApp({
     }
     try {
       const opened = contest.open(parsed.data.candidates);
-      audit.append(req.user!.sub, 'CONTEST_OPENED', { candidates: opened.candidates });
+      audit.append(actor(req.user), 'CONTEST_OPENED', { candidates: opened.candidates });
       res.status(201).json(opened);
     } catch (err) {
       if (err instanceof ContestError) {
@@ -104,7 +105,7 @@ export function createApp({
     } catch (err) {
       if (err instanceof ReplayError) {
         // Log a short prefix of the token hash only, enough to investigate, not to identify.
-        audit.append(req.user!.sub, 'BALLOT_REPLAY_REJECTED', { tokenHashPrefix: hashToken(parsed.data.token).slice(0, 12) });
+        audit.append(actor(req.user), 'BALLOT_REPLAY_REJECTED', { tokenHashPrefix: hashToken(parsed.data.token).slice(0, 12) });
         res.status(409).json({ error: 'ballot token has already been used' });
         return;
       }
@@ -116,7 +117,7 @@ export function createApp({
   app.post('/contest/close', auth, requireRole('admin'), (req, res) => {
     try {
       contest.close();
-      audit.append(req.user!.sub, 'CONTEST_CLOSED', { ballotCount: ballots.count() });
+      audit.append(actor(req.user), 'CONTEST_CLOSED', { ballotCount: ballots.count() });
       res.json(contest.get());
     } catch (err) {
       if (err instanceof ContestError) {
@@ -141,19 +142,19 @@ export function createApp({
       return;
     }
     const ballotSetHash = hashBallotSet(batch);
-    audit.append(req.user!.sub, 'COUNT_STARTED', { ballotCount: batch.length, ballotSetHash });
+    audit.append(actor(req.user), 'COUNT_STARTED', { ballotCount: batch.length, ballotSetHash });
 
     const outcome = verifiedCount(current.candidates, batch, engines.a, engines.b);
 
     if (outcome.status === 'MISMATCH') {
       // Fail safe: no result is stored or returned, and the halt is on the tamper-evident record.
-      audit.append(req.user!.sub, 'COUNT_MISMATCH', { discrepancies: outcome.discrepancies.slice(0, 20) });
+      audit.append(actor(req.user), 'COUNT_MISMATCH', { discrepancies: outcome.discrepancies.slice(0, 20) });
       res.status(409).json({ status: 'HALTED', error: 'counting engines disagree; result withheld', discrepancies: outcome.discrepancies });
       return;
     }
 
     results.save(outcome.result, outcome.resultHash, ballotSetHash);
-    const entry = audit.append(req.user!.sub, 'COUNT_VERIFIED', {
+    const entry = audit.append(actor(req.user), 'COUNT_VERIFIED', {
       winner: outcome.result.winner,
       rounds: outcome.result.rounds.length,
       resultHash: outcome.resultHash,

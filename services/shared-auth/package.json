@@ -1,0 +1,17 @@
+{
+  "name": "@evote/shared-auth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared JWT authentication and role-based access control middleware for all services (SR-15, SR-17). No runtime dependencies; each service passes in jsonwebtoken.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "node --test test/auth.test.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "devDependencies": {
+    "jsonwebtoken": "9.0.2"
+  }
+}

@@ -19,8 +19,10 @@ if (!KEY) {
   process.exit(1);
 }
 
-// Dev-only stand-in for tokens issued by services/auth-access-control.
-const token = (role) => jwt.sign({ sub: `${role}-demo`, role }, KEY, { algorithm: 'HS256', expiresIn: '15m' });
+// Dev-only: mints tokens directly. In the integrated system the console gets them from POST /auth/login.
+// Same shape as auth-access-control's login tokens (numeric id, role, username).
+const IDS = { admin: 1, delegate: 2, auditor: 4 };
+const token = (role) => jwt.sign({ sub: IDS[role], role, username: `${role}-demo` }, KEY, { algorithm: 'HS256', expiresIn: '15m' });
 const as = { admin: token('admin'), delegate: token('delegate'), auditor: token('auditor') };
 
 async function call(method, path, role, body) {
