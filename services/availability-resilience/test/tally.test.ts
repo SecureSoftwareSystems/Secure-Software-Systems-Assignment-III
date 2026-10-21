@@ -53,3 +53,38 @@ describe('tally write restrictions', () => {
     expect(rowCount()).toBe(0);
   });
 });
+
+describe('tally permitted access', () => {
+  it.each(['admin', 'delegate'])('allows %s to write', async (role) => {
+    const res = await request(app)
+      .post('/tally')
+      .set('x-test-role', role)
+      .send({ candidate: 'Alice', count: 7 });
+    expect(res.status).toBe(201);
+    expect(rowCount()).toBe(1);
+  });
+
+  it('allows an auditor to read tally results', async () => {
+    await request(app).post('/tally').set('x-test-role', 'admin').send({ candidate: 'Alice', count: 7 });
+    const res = await request(app).get('/tally').set('x-test-role', 'auditor');
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ candidate: 'Alice', count: 7 });
+  });
+
+  it('rejects invalid input with 400', async () => {
+    const res = await request(app)
+      .post('/tally')
+      .set('x-test-role', 'admin')
+      .send({ candidate: '', count: -1 });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('tally database separation', () => {
+  it('lives in its own file and contains only the tally table', () => {
+    const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[])
+      .map((t) => t.name);
+    expect(tables).toEqual(['tally']);
+    expect(fs.existsSync(path.join(dir, 'tally.db'))).toBe(true);
+  });
+});
