@@ -40,6 +40,8 @@ function writeEnv(file, values) {
 // Use one JWT key across all services: reuse the first existing one if --keep-jwt, else a new one.
 const services = {
   'auth-access-control': {},
+  // Rosie's service checks tokens once its server wires in shared-auth (port 4004).
+  'availability-resilience': {},
   'vote-integrity': { AUDIT_LOG_HMAC_KEY: hex },
   'results-api': {
     DATA_ENCRYPTION_KEY: hex,
