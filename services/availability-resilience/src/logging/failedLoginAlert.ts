@@ -5,8 +5,7 @@ export class FailedLoginMonitor {
 
   constructor(private windowMs = 60_000, private threshold = 5) {}
 
-  // Logs the failed login and returns true if the threshold was exceeded.
-  // `now` can be passed in so tests control time without real waiting.
+
   record(userId?: string | number, now: number = Date.now()): boolean {
     this.attempts.push(now);
     this.attempts = this.attempts.filter((t) => now - t < this.windowMs);
