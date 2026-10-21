@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import { TallyDb } from '../db/tallyDb';
 import { requireTallyRead, requireTallyWrite } from '../rbac';
+import { logEvent } from '../logging/logger';
 
 export function createTallyRouter(db: TallyDb): Router {
   const router = Router();
@@ -27,6 +28,7 @@ export function createTallyRouter(db: TallyDb): Router {
       `INSERT INTO tally (candidate, count, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(candidate) DO UPDATE SET count = excluded.count, updated_at = excluded.updated_at`
     ).run(candidate.trim(), count, new Date().toISOString());
+    logEvent({ event: 'tally_updated', outcome: 'success', details: { candidate: candidate.trim() } });
     res.status(201).json({ candidate: candidate.trim(), count });
   });
 
