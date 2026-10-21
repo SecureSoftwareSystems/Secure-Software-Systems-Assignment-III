@@ -73,7 +73,7 @@ export class VoteIntegrityClient implements ResultsSource {
     if (this.cached && Date.now() - this.cached.at < this.cacheMs) return this.cached.value;
 
     // Short-lived service token with the read-only auditor role (least privilege).
-    const token = jwt.sign({ sub: 'svc:results-api', role: 'auditor' }, this.jwtSigningKey, {
+    const token = jwt.sign({ sub: 'svc:results-api', role: 'auditor', username: 'svc:results-api' }, this.jwtSigningKey, {
       algorithm: 'HS256',
       expiresIn: 60,
     });
