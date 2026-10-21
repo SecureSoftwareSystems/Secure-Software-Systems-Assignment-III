@@ -1,0 +1,167 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  background: #f7f8fa;
+}
+
+/* Left panel — dark info/branding side */
+.login-info {
+  flex: 1 1 420px;
+  min-width: 320px;
+  background: #12141c;
+  color: #f7f8fa;
+  padding: 64px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.login-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-badge-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #2541b2;
+  flex-shrink: 0;
+}
+
+.login-badge-label {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9aa0ae;
+  font-weight: 600;
+}
+
+.login-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-info-text h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.25;
+  max-width: 440px;
+}
+
+.login-info-text p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #c2c6cf;
+  max-width: 400px;
+}
+
+.login-info-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c2c6cf;
+  max-width: 400px;
+  border-top: 1px solid #2a2d38;
+  padding-top: 24px;
+}
+
+/* Right panel — the actual form */
+.login-panel {
+  flex: 1 1 420px;
+  min-width: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  box-sizing: border-box;
+}
+
+.login-panel-inner {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.login-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #12141c;
+}
+
+.login-heading p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #12141c;
+}
+
+.login-form input {
+  padding: 10px 12px;
+  border: 1px solid #d7d9e0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.login-form input:focus {
+  outline: 2px solid #2541b2;
+  outline-offset: 1px;
+  border-color: #2541b2;
+}
+
+.login-form button {
+  margin-top: 8px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #2541b2;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.login-form button:hover {
+  background: #1f3694;
+}
+
+.login-message {
+  margin: 0;
+  font-size: 14px;
+  color: #1a7f37;
+  font-weight: 600;
+}
