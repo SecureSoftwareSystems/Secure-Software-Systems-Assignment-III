@@ -18,6 +18,5 @@ import { requireRole as sharedRequireRole } from "../../shared-auth";
  * in code, not just in the report.
  */
 export function requireRole(...allowed: Role[]) {
-  // One implementation for the whole system, in services/shared-auth (401 if not signed in, 403 if the role is wrong).
   return sharedRequireRole(...allowed) as (req: AuthedRequest, res: Response, next: NextFunction) => void;
 }

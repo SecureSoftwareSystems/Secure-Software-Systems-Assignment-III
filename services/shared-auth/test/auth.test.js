@@ -1,5 +1,4 @@
 'use strict';
-// Run with: npm test (Node's built-in test runner, no extra framework needed).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');

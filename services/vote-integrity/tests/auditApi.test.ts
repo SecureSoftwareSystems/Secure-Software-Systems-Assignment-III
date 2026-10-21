@@ -23,7 +23,7 @@ describe('SR-09 audit log API', () => {
     const { app } = makeApp();
     await request(app).get('/audit').set('Authorization', bearer('delegate')).expect(403);
     const res = await request(app).get('/audit').set('Authorization', bearer('auditor')).expect(200);
-    expect(res.body.entries).toHaveLength(1); // the view itself is logged
+    expect(res.body.entries).toHaveLength(1);
     expect(res.body.entries[0].action).toBe('AUDIT_LOG_VIEWED');
   });
 

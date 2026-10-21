@@ -3,7 +3,6 @@ import { createDb } from "./db";
 import { createUser } from "./auth";
 import { createApp } from "./app";
 
-// Fail closed at startup: no signing key, no service (SR-16).
 requireSigningKey(process.env.JWT_SIGNING_KEY);
 
 const DB_PATH = process.env.DB_PATH || "./tabulation.db";

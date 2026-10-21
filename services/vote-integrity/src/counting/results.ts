@@ -1,12 +1,6 @@
 import type { DB } from '../db';
 import type { CountResult } from './types';
 
-/**
- * Verified results only: a result reaches this table only after both engines
- * agreed (SR-10). Each row carries the result hash that was also written to
- * the audit log (SR-09), so the two can be checked against each other.
- * Results are kept, never overwritten; a recount adds a new row.
- */
 export interface StoredResult {
   id: number;
   result: CountResult;

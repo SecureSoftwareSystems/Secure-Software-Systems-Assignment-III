@@ -14,7 +14,6 @@ describe('SR-03 Fisher-Yates shuffle', () => {
   });
 
   test('output is in a different order from the input', () => {
-    // The chance that 50 items come back in their original order is 1 in 50! (about 3e-65).
     expect(fisherYatesShuffle(items)).not.toEqual(items);
   });
 
@@ -25,7 +24,6 @@ describe('SR-03 Fisher-Yates shuffle', () => {
   });
 
   test('follows the Fisher-Yates swap sequence for a given random source', () => {
-    // rand always returns 0: i=3 swaps with 0, i=2 with 0, i=1 with 0.
     expect(fisherYatesShuffle(['a', 'b', 'c', 'd'], () => 0)).toEqual(['b', 'c', 'd', 'a']);
   });
 
@@ -44,7 +42,6 @@ describe('SR-03 Fisher-Yates shuffle', () => {
     const expected = runs / 6;
     let chiSquare = 0;
     for (const c of counts.values()) chiSquare += (c - expected) ** 2 / expected;
-    // Critical value for 5 degrees of freedom at p = 0.001 is 20.52.
     expect(chiSquare).toBeLessThan(20.52);
   });
 
@@ -90,7 +87,6 @@ describe('SR-03 ballot storage keeps no arrival-order information', () => {
     new BallotStore(db);
     const cols = (db.prepare("SELECT name FROM pragma_table_info('ballots')").all() as { name: string }[]).map((c) => c.name);
     expect(cols.sort()).toEqual(['id', 'preferences']);
-    // WITHOUT ROWID: there is no hidden auto-increment rowid revealing insertion order.
     expect(() => db.prepare('SELECT rowid FROM ballots').all()).toThrow();
   });
 

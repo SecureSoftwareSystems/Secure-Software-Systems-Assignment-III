@@ -1,6 +1,3 @@
-// Types for @evote/shared-auth. Structural types only, so this file needs no
-// other packages installed next to it (each service brings its own Express types).
-
 export type Role = 'admin' | 'delegate' | 'auditor';
 
 export interface AuthUser {
@@ -20,15 +17,12 @@ export interface MinimalResponse {
 
 export type Middleware = (req: any, res: any, next: (err?: unknown) => void) => void;
 
-/** The jsonwebtoken module (or anything with a compatible verify). Kept loose so any @types/jsonwebtoken version fits. */
 export interface JwtLike {
   verify: (...args: any[]) => unknown;
 }
 
 export interface Auth {
-  /** Verifies the bearer token; sets req.user or answers 401. */
   authenticate: Middleware;
-  /** Answers 401 if not signed in, 403 if the role is not allowed. */
   requireRole(...allowed: Role[]): Middleware;
   actorOf(user: AuthUser | undefined): string;
 }

@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-/**
- * Creates or updates each service's .env for running the whole system on THIS computer.
- *
- * - JWT_SIGNING_KEY: one new random 256-bit value, written to every service that checks tokens,
- *   so a token from auth-access-control's /auth/login works on all of them (shared-auth contract).
- * - Other secrets (AUDIT_LOG_HMAC_KEY, DATA_ENCRYPTION_KEY) and RESULTS_RELEASE_AT are only
- *   filled in if missing, so existing values are kept.
- *
- * Never share or commit the generated values: .env is git-ignored (SR-16). Each person runs this
- * on their own machine; keys only need to match between services on the same machine.
- *
- * Usage, from the repo root:   node scripts/setup-local-env.js
- * Add --keep-jwt to keep an existing JWT_SIGNING_KEY instead of generating a new one.
- */
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
@@ -37,15 +23,12 @@ function writeEnv(file, values) {
   fs.writeFileSync(file, body, { mode: 0o600 });
 }
 
-// Use one JWT key across all services: reuse the first existing one if --keep-jwt, else a new one.
 const services = {
   'auth-access-control': {},
-  // Rosie's service checks tokens once its server wires in shared-auth (port 4004).
   'availability-resilience': {},
   'vote-integrity': { AUDIT_LOG_HMAC_KEY: hex },
   'results-api': {
     DATA_ENCRYPTION_KEY: hex,
-    // Default: results go public 1 hour from now. Change it before the demo if you like.
     RESULTS_RELEASE_AT: () => new Date(Date.now() + 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
   },
 };
