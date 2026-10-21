@@ -5,11 +5,23 @@ import Database from "better-sqlite3";
 import { Role, Users } from "./db";
 
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-only-secret-change-me";
-const TOKEN_TTL = "15m"; 
+// Shared token contract for every service (services/shared-auth): HS256, JWT_SIGNING_KEY, 15-minute expiry.
+// No fallback secret: a missing or short key is an error, not a silent default (SR-16, fail closed).
+import { createAuth, requireSigningKey, type Auth } from "../../shared-auth";
+
+const TOKEN_TTL = "15m";
+
+function signingKey(): string {
+  return requireSigningKey(process.env.JWT_SIGNING_KEY);
+}
+
+let shared: Auth | undefined;
+function sharedAuth(): Auth {
+  return (shared ??= createAuth({ jwt, signingKey: signingKey() }));
+}
 
 export interface AuthedRequest extends Request {
-  user?: { id: number; role: Role };
+  user?: { id: number; role: Role; username?: string };
 }
 
 export function hashPassword(plain: string): string {
@@ -35,21 +47,17 @@ export function login(db: Database.Database, username: string, password: string)
   const user = db.prepare("SELECT * FROM users WHERE username = ?").get(username) as Users | undefined;
   if (!user) return null;
   if (!bcrypt.compareSync(password, user.password_hash)) return null;
-  return jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+  return jwt.sign({ sub: user.id, role: user.role, username: user.username }, signingKey(), {
+    algorithm: "HS256",
+    expiresIn: TOKEN_TTL,
+  });
 }
 
-/** Express middleware: verifies the bearer token and attaches req.user. (SR-17: token TTL above enforces expiry.) */
+/**
+ * Express middleware: verifies the bearer token and attaches req.user.
+ * The checking itself lives in services/shared-auth so every service enforces exactly the
+ * same rules (algorithm pinned to HS256, expiry, known roles). SR-17: the TTL above enforces expiry.
+ */
 export function authMiddleware(req: AuthedRequest, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing or malformed Authorization header" });
-  }
-  const token = header.slice("Bearer ".length);
-  try {
-    const payload = jwt.verify(token, JWT_SECRET) as unknown as { sub: number; role: Role };
-    req.user = { id: payload.sub, role: payload.role };
-    next();
-  } catch {
-    return res.status(401).json({ error: "Invalid or expired session" });
-  }
+  return sharedAuth().authenticate(req, res, next);
 }

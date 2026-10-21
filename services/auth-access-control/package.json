@@ -13,6 +13,9 @@
     "testEnvironment": "node",
     "testMatch": [
       "**/tests/**/*.test.ts"
+    ],
+    "setupFiles": [
+      "<rootDir>/tests/setupEnv.ts"
     ]
   },
   "keywords": [],
