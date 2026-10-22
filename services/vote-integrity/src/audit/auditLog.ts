@@ -1,22 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { withTransaction, type DB } from '../db';
 
-/**
- * SR-09 — Hash-chained, append-only audit log.
- *
- * Every entry stores hash = SHA-256(previous entry's hash + this entry's content).
- * Changing, removing or reordering any entry breaks the chain from that entry on,
- * and verifyChain() reports where.
- *
- * Three layers of protection:
- *   1. SQLite triggers reject UPDATE and DELETE on audit_log (append-only).
- *   2. The hash chain makes any change that gets past the triggers detectable.
- *   3. A signed checkpoint (HMAC-SHA256 over the latest hash, keyed with
- *      AUDIT_LOG_HMAC_KEY from the secrets store, SR-16) is exported to the
- *      isolated store (SR-12). An attacker who rewrites the whole chain
- *      cannot forge a matching checkpoint without the key.
- */
-
 export const GENESIS_HASH = '0'.repeat(64);
 
 export interface AuditEntry {
@@ -24,7 +8,7 @@ export interface AuditEntry {
   ts: string;
   actor: string;
   action: string;
-  details: string; // canonical JSON
+  details: string;
   prevHash: string;
   hash: string;
 }
@@ -32,7 +16,6 @@ export interface AuditEntry {
 export interface ChainVerification {
   valid: boolean;
   checked: number;
-  /** seq of the first entry that fails verification, if any */
   firstInvalidSeq?: number;
   reason?: string;
 }
@@ -69,7 +52,6 @@ export function initAuditLog(db: DB): void {
   `);
 }
 
-/** JSON with object keys sorted at every level, so the same data always hashes the same. */
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(sortKeys(value));
 }
@@ -86,10 +68,7 @@ function sortKeys(value: unknown): unknown {
   return value;
 }
 
-/**
- * The hashed content is a JSON array rather than a plain concatenation,
- * so field boundaries can't be shifted: ("ab","c") and ("a","bc") hash differently.
- */
+// JSON array, so field boundaries cannot be shifted to forge the same hash.
 export function computeEntryHash(e: Omit<AuditEntry, 'hash'>): string {
   const content = JSON.stringify([e.seq, e.ts, e.actor, e.action, e.details]);
   return createHash('sha256').update(e.prevHash).update(content).digest('hex');
@@ -134,8 +113,7 @@ export class AuditLog {
 
   append(actor: string, action: string, details: unknown = {}): AuditEntry {
     if (!actor || !action) throw new Error('actor and action are required');
-    // Reading the last hash and inserting the new row happen in one transaction,
-    // so two writers can never both chain onto the same previous entry.
+    // One transaction, so two writers can never chain onto the same entry.
     return withTransaction(this.db, () => {
       const last = this.lastStmt.get() as Row | undefined;
       const partial = {
@@ -161,7 +139,6 @@ export class AuditLog {
     return r ? fromRow(r) : undefined;
   }
 
-  /** Walks the whole chain from the genesis entry and recomputes every hash. */
   verifyChain(): ChainVerification {
     let expectedPrev = GENESIS_HASH;
     let expectedSeq = 1;
@@ -184,7 +161,6 @@ export class AuditLog {
     return { valid: true, checked };
   }
 
-  /** Signs the current head of the chain, for export to the isolated store (SR-12). */
   checkpoint(key: string): Checkpoint {
     requireKey(key);
     const h = this.head();
@@ -193,10 +169,6 @@ export class AuditLog {
     return { seq, hash, signature: signCheckpoint(key, seq, hash) };
   }
 
-  /**
-   * Confirms that a previously exported checkpoint is still part of this chain.
-   * Fails if the checkpoint was forged, or if the chain was rewritten after it was taken.
-   */
   verifyCheckpoint(key: string, cp: Checkpoint): boolean {
     requireKey(key);
     if (!safeEqualHex(signCheckpoint(key, cp.seq, cp.hash), cp.signature)) return false;

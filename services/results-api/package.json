@@ -8,7 +8,9 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "dev": "npm run build && node --env-file=.env dist/server.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "demo:seed": "ts-node scripts/demo-seed.ts",
+    "demo:alert": "ts-node scripts/demo-alert.ts"
   },
   "engines": {
     "node": ">=22.13"

@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { bearer, makeApp, tokenFor } from './helpers';
+import { JWT_KEY, bearer, makeApp, tokenFor } from './helpers';
 
 describe('SR-09 audit log API', () => {
   test('requires a valid token (401 without one)', async () => {
@@ -23,7 +23,7 @@ describe('SR-09 audit log API', () => {
     const { app } = makeApp();
     await request(app).get('/audit').set('Authorization', bearer('delegate')).expect(403);
     const res = await request(app).get('/audit').set('Authorization', bearer('auditor')).expect(200);
-    expect(res.body.entries).toHaveLength(1); // the view itself is logged
+    expect(res.body.entries).toHaveLength(1);
     expect(res.body.entries[0].action).toBe('AUDIT_LOG_VIEWED');
   });
 
@@ -45,5 +45,21 @@ describe('SR-09 audit log API', () => {
     await request(app).post('/audit/checkpoint').set('Authorization', bearer('auditor')).expect(403);
     const res = await request(app).post('/audit/checkpoint').set('Authorization', bearer('admin')).expect(201);
     expect(res.body.signature).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe('shared auth middleware (services/shared-auth)', () => {
+  test('accepts a token shaped like auth-access-control login tokens and logs the username as actor', async () => {
+    const { app, db } = makeApp();
+    await request(app).get('/audit').set('Authorization', bearer('auditor')).expect(200);
+    const row = db.prepare('SELECT actor FROM audit_log WHERE seq = 1').get() as { actor: string };
+    expect(row.actor).toBe('auditor-1');
+  });
+
+  test('rejects a validly signed token with an unknown role', async () => {
+    const { app } = makeApp();
+    const jwt = require('jsonwebtoken');
+    const bad = jwt.sign({ sub: 9, role: 'superuser' }, JWT_KEY, { algorithm: 'HS256', expiresIn: '15m' });
+    await request(app).get('/audit').set('Authorization', `Bearer ${bad}`).expect(401);
   });
 });

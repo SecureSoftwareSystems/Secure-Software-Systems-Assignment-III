@@ -1,9 +1,3 @@
-/**
- * Configuration comes only from environment variables (SR-16). Real values
- * live in .env locally (git-ignored) and in GitHub Actions secrets in CI.
- * The service fails closed: if a required secret is missing or too weak,
- * it refuses to start rather than running with a default.
- */
 export interface Config {
   port: number;
   dbPath: string;

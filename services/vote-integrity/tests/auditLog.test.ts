@@ -3,7 +3,6 @@ import { AuditLog, GENESIS_HASH, computeEntryHash } from '../src/audit/auditLog'
 
 const KEY = 'test-only-hmac-key-0123456789abcdef0123456789';
 
-/** Simulates an attacker who has direct write access to the database file. */
 function attackerDropsTriggers(db: DB): void {
   db.exec('DROP TRIGGER audit_log_no_update; DROP TRIGGER audit_log_no_delete;');
 }
@@ -54,7 +53,7 @@ describe('SR-09 hash-chained audit log', () => {
     const result = log.verifyChain();
     expect(result.valid).toBe(false);
     expect(result.firstInvalidSeq).toBe(3);
-    expect(result.checked).toBe(2); // entries 1 and 2 are still good
+    expect(result.checked).toBe(2);
   });
 
   test('editing an entry and recomputing its hash still breaks the chain at the next entry', () => {
@@ -84,7 +83,7 @@ describe('SR-09 hash-chained audit log', () => {
     const cp = log.checkpoint(KEY);
     expect(cp.seq).toBe(4);
     expect(log.verifyCheckpoint(KEY, cp)).toBe(true);
-    log.append('auditor-1', 'VIEW_LOG'); // new entries after the checkpoint are fine
+    log.append('auditor-1', 'VIEW_LOG');
     expect(log.verifyCheckpoint(KEY, cp)).toBe(true);
   });
 
@@ -92,7 +91,6 @@ describe('SR-09 hash-chained audit log', () => {
     seed(log, 4);
     const cp = log.checkpoint(KEY);
 
-    // Attacker rewrites every entry and recomputes every hash so the chain looks consistent.
     attackerDropsTriggers(db);
     const original = log.entries();
     db.prepare('DELETE FROM audit_log').run();

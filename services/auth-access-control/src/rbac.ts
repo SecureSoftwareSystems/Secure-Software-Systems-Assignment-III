@@ -1,6 +1,7 @@
 import type { Response, NextFunction } from "express";
-import { Role } from "./db";
-import { AuthedRequest } from "./auth";
+import type { Role } from "./db";
+import type { AuthedRequest } from "./auth";
+import { requireRole as sharedRequireRole } from "../../shared-auth";
 
 /**
  * SR-15 — Role-based access control (least privilege).
@@ -17,13 +18,5 @@ import { AuthedRequest } from "./auth";
  * in code, not just in the report.
  */
 export function requireRole(...allowed: Role[]) {
-  return (req: AuthedRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-    if (!allowed.includes(req.user.role)) {
-      return res.status(403).json({ error: `Role '${req.user.role}' is not permitted to perform this action` });
-    }
-    next();
-  };
+  return sharedRequireRole(...allowed) as (req: AuthedRequest, res: Response, next: NextFunction) => void;
 }

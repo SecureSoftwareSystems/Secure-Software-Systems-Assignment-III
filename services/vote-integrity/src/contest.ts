@@ -1,10 +1,5 @@
 import type { DB } from './db';
 
-/**
- * The single contest this prototype counts: its candidate list and whether
- * ballot intake is open. Candidates can only be changed before any ballot
- * arrives, and once the contest is closed no further ballots are accepted.
- */
 export type ContestStatus = 'setup' | 'open' | 'closed';
 
 export interface Contest {
@@ -38,7 +33,6 @@ export class ContestStore {
     return { candidates: JSON.parse(row.candidates) as string[], status: row.status };
   }
 
-  /** Sets the candidates and opens ballot intake. Allowed only once, before any ballots. */
   open(candidates: string[]): Contest {
     if (this.get().status !== 'setup') throw new ContestError('contest has already been opened');
     this.db.prepare("UPDATE contest SET candidates = ?, status = 'open' WHERE id = 1").run(JSON.stringify(candidates));

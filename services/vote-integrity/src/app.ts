@@ -1,7 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import type { DB } from './db';
 import { AuditLog } from './audit/auditLog';
-import { authenticate, requireRole } from './auth';
+import { actor, createServiceAuth } from './auth';
 import { BallotStore } from './ballots';
 import { ContestError, ContestStore } from './contest';
 import { ReplayError, ReplayGuard, hashToken } from './tokens/replayGuard';
@@ -16,7 +16,6 @@ export interface AppDeps {
   db: DB;
   jwtSigningKey: string;
   auditHmacKey: string;
-  /** Only overridden in tests, to prove the comparator catches a faulty engine. */
   engines?: { a: CountingEngine; b: CountingEngine };
 }
 
@@ -40,11 +39,10 @@ export function createApp({
     res.json({ status: 'ok' });
   });
 
-  const auth = authenticate(jwtSigningKey);
+  const { authenticate: auth, requireRole } = createServiceAuth(jwtSigningKey);
 
-  // ---- SR-09 audit log ----
   app.get('/audit', auth, requireRole('auditor', 'admin'), (req, res) => {
-    audit.append(req.user!.sub, 'AUDIT_LOG_VIEWED');
+    audit.append(actor(req.user), 'AUDIT_LOG_VIEWED');
     res.json({ entries: audit.entries() });
   });
 
@@ -55,11 +53,10 @@ export function createApp({
 
   app.post('/audit/checkpoint', auth, requireRole('admin'), (req, res) => {
     const cp = audit.checkpoint(auditHmacKey);
-    audit.append(req.user!.sub, 'AUDIT_CHECKPOINT_TAKEN', { seq: cp.seq, hash: cp.hash });
+    audit.append(actor(req.user), 'AUDIT_CHECKPOINT_TAKEN', { seq: cp.seq, hash: cp.hash });
     res.status(201).json(cp);
   });
 
-  // ---- Contest setup ----
   app.get('/contest', auth, (_req, res) => {
     res.json(contest.get());
   });
@@ -72,7 +69,7 @@ export function createApp({
     }
     try {
       const opened = contest.open(parsed.data.candidates);
-      audit.append(req.user!.sub, 'CONTEST_OPENED', { candidates: opened.candidates });
+      audit.append(actor(req.user), 'CONTEST_OPENED', { candidates: opened.candidates });
       res.status(201).json(opened);
     } catch (err) {
       if (err instanceof ContestError) {
@@ -83,10 +80,7 @@ export function createApp({
     }
   });
 
-  // ---- SR-07 ballot intake with single-use tokens ----
-  // Called by the synthetic ballot feed, which stands in for the voting client.
-  // Accepted ballots are deliberately NOT written to the audit log one by one:
-  // a timestamped, ordered record of each ballot would undo the SR-03 anonymisation.
+  // SR-03: accepted ballots are not logged one by one, so voting order is never recorded.
   app.post('/ballots', auth, requireRole('admin'), (req, res) => {
     const current = contest.get();
     if (current.status !== 'open') {
@@ -103,8 +97,7 @@ export function createApp({
       res.status(201).json({ accepted: true });
     } catch (err) {
       if (err instanceof ReplayError) {
-        // Log a short prefix of the token hash only, enough to investigate, not to identify.
-        audit.append(req.user!.sub, 'BALLOT_REPLAY_REJECTED', { tokenHashPrefix: hashToken(parsed.data.token).slice(0, 12) });
+        audit.append(actor(req.user), 'BALLOT_REPLAY_REJECTED', { tokenHashPrefix: hashToken(parsed.data.token).slice(0, 12) });
         res.status(409).json({ error: 'ballot token has already been used' });
         return;
       }
@@ -112,11 +105,10 @@ export function createApp({
     }
   });
 
-  // ---- SR-10 counting ----
   app.post('/contest/close', auth, requireRole('admin'), (req, res) => {
     try {
       contest.close();
-      audit.append(req.user!.sub, 'CONTEST_CLOSED', { ballotCount: ballots.count() });
+      audit.append(actor(req.user), 'CONTEST_CLOSED', { ballotCount: ballots.count() });
       res.json(contest.get());
     } catch (err) {
       if (err instanceof ContestError) {
@@ -134,26 +126,25 @@ export function createApp({
       return;
     }
 
-    // SR-03: the engines only ever see anonymised, shuffled ballots.
     const batch = ballots.batchForCounting();
     if (batch.length === 0) {
       res.status(409).json({ error: 'no ballots to count' });
       return;
     }
     const ballotSetHash = hashBallotSet(batch);
-    audit.append(req.user!.sub, 'COUNT_STARTED', { ballotCount: batch.length, ballotSetHash });
+    audit.append(actor(req.user), 'COUNT_STARTED', { ballotCount: batch.length, ballotSetHash });
 
     const outcome = verifiedCount(current.candidates, batch, engines.a, engines.b);
 
     if (outcome.status === 'MISMATCH') {
-      // Fail safe: no result is stored or returned, and the halt is on the tamper-evident record.
-      audit.append(req.user!.sub, 'COUNT_MISMATCH', { discrepancies: outcome.discrepancies.slice(0, 20) });
+      // SR-10 fail safe: on a mismatch no result is stored or returned.
+      audit.append(actor(req.user), 'COUNT_MISMATCH', { discrepancies: outcome.discrepancies.slice(0, 20) });
       res.status(409).json({ status: 'HALTED', error: 'counting engines disagree; result withheld', discrepancies: outcome.discrepancies });
       return;
     }
 
     results.save(outcome.result, outcome.resultHash, ballotSetHash);
-    const entry = audit.append(req.user!.sub, 'COUNT_VERIFIED', {
+    const entry = audit.append(actor(req.user), 'COUNT_VERIFIED', {
       winner: outcome.result.winner,
       rounds: outcome.result.rounds.length,
       resultHash: outcome.resultHash,
@@ -171,7 +162,6 @@ export function createApp({
     res.json(latest);
   });
 
-  // Unknown routes and unexpected errors: generic messages only, no stack traces.
   app.use((_req, res) => {
     res.status(404).json({ error: 'not found' });
   });

@@ -1,14 +1,4 @@
 /* eslint-disable no-console */
-/**
- * Synthetic ballot feed + walkthrough for the recorded demo.
- * Stands in for the voting client: opens a contest, submits ballots with
- * one-time tokens, tries a replay, closes intake, runs the verified count
- * and checks the audit chain.
- *
- * Run with the service already started (npm run dev) in another terminal:
- *   npm run demo
- * Reads JWT_SIGNING_KEY from the environment (.env); it is never printed.
- */
 const { randomBytes } = require('node:crypto');
 const jwt = require('jsonwebtoken');
 
@@ -19,8 +9,8 @@ if (!KEY) {
   process.exit(1);
 }
 
-// Dev-only stand-in for tokens issued by services/auth-access-control.
-const token = (role) => jwt.sign({ sub: `${role}-demo`, role }, KEY, { algorithm: 'HS256', expiresIn: '15m' });
+const IDS = { admin: 1, delegate: 2, auditor: 4 };
+const token = (role) => jwt.sign({ sub: IDS[role], role, username: `${role}-demo` }, KEY, { algorithm: 'HS256', expiresIn: '15m' });
 const as = { admin: token('admin'), delegate: token('delegate'), auditor: token('auditor') };
 
 async function call(method, path, role, body) {

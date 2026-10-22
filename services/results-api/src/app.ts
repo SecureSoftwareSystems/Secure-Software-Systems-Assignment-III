@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { authenticate, requireRole } from './auth';
+import { createServiceAuth } from './auth';
 import { IntegrityError, SourceUnavailableError, assertIntegrity, type ResultsSource, type VerifiedResult } from './resultsSource';
 import { fullView, publicView } from './views';
 import { authHeaderSchema, noQuery, upstreamResultSchema, validate } from './validation';
@@ -90,7 +90,7 @@ export function createApp({
   });
 
   // ---- SR-11 privileged scope: scrutineers and auditors may verify before release ----
-  const auth = authenticate(jwtSigningKey);
+  const { authenticate: auth, requireRole } = createServiceAuth(jwtSigningKey);
   app.get(
     '/results/full',
     privilegedLimiter,

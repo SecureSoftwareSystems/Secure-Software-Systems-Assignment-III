@@ -20,7 +20,8 @@ export const BEFORE = new Date(RELEASE_AT.getTime() - 60_000);
 export const AFTER = new Date(RELEASE_AT.getTime() + 60_000);
 
 export function bearer(role: Role, key = JWT_KEY): string {
-  return `Bearer ${jwt.sign({ sub: `${role}-1`, role }, key, { algorithm: 'HS256', expiresIn: '15m' })}`;
+  const ids = { admin: 1, delegate: 2, auditor: 4 } as const;
+  return `Bearer ${jwt.sign({ sub: ids[role], role, username: `${role}-1` }, key, { algorithm: 'HS256', expiresIn: '15m' })}`;
 }
 
 export function verified(): VerifiedResult {

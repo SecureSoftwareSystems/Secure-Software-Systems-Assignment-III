@@ -2,13 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { DB } from './db';
 import { prepareForCounting, type AnonymousBallot, type RandomIntFn } from './shuffle/shuffle';
 
-/**
- * Ballot storage, designed so the stored data itself doesn't reveal arrival order (SR-03):
- *   - no timestamp, voter id, token or IP column is stored with a ballot;
- *   - the primary key is a random UUID and the table is WITHOUT ROWID, so SQLite
- *     keeps rows in random-id order instead of insertion order, and there is no
- *     auto-increment number that would leak the sequence.
- */
+// SR-03: no timestamp, voter or IP column and WITHOUT ROWID, so arrival order is not stored.
 export function initBallots(db: DB): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS ballots (
@@ -38,7 +32,6 @@ export class BallotStore {
     return (this.countStmt.get() as { n: number }).n;
   }
 
-  /** All ballots, anonymised and shuffled: ready for the counting engines. */
   batchForCounting(rand?: RandomIntFn): AnonymousBallot[] {
     const rows = this.allStmt.all() as { preferences: string }[];
     const records = rows.map((r) => ({ preferences: JSON.parse(r.preferences) as string[] }));

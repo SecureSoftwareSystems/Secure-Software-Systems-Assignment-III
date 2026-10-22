@@ -1,6 +1,9 @@
+import { requireSigningKey } from "../../shared-auth";
 import { createDb } from "./db";
 import { createUser } from "./auth";
 import { createApp } from "./app";
+
+requireSigningKey(process.env.JWT_SIGNING_KEY);
 
 const DB_PATH = process.env.DB_PATH || "./tabulation.db";
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
