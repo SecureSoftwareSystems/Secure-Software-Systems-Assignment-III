@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./IntegrityConsole.css";
 import {
   integrity,
@@ -46,9 +46,11 @@ export default function IntegrityConsole({ token, role, onLogout }: Props) {
   const [lastTicket, setLastTicket] = useState<{ token: string; preferences: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<LogLine[]>([]);
+  const nextLogId = useRef(1);
 
   function record(action: string, status: number, message: string) {
-    setLog((prev) => [{ id: Date.now() + Math.random(), action, status, message }, ...prev].slice(0, 12));
+    const id = nextLogId.current++;
+    setLog((prev) => [{ id, action, status, message }, ...prev].slice(0, 12));
   }
 
   async function loadContest() {
