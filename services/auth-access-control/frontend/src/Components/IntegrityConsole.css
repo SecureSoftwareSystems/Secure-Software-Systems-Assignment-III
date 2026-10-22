@@ -1,0 +1,283 @@
+.integrity .ic-grid {
+  max-width: 1180px;
+  margin: 24px auto;
+  padding: 0 32px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.integrity .ic-wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 860px) {
+  .integrity .ic-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 16px;
+  }
+}
+
+.ic-card {
+  background: #ffffff;
+  border: 1px solid #e4e6eb;
+  border-radius: 10px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ic-card-head {
+  min-height: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ic-card h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #12141c;
+}
+
+.ic-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.ic-note,
+.ic-meta {
+  margin: 0;
+  font-size: 14px;
+  color: #40434d;
+}
+
+.ic-meta {
+  font-size: 13px;
+}
+
+.ic-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.ic-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #12141c;
+  flex: 1 1 240px;
+}
+
+.ic-field input {
+  padding: 10px 12px;
+  border: 1px solid #d7d9e0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.ic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ic-card button {
+  padding: 9px 14px;
+  border: 1px solid #d7d9e0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #12141c;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ic-card button:hover:not(:disabled) {
+  background: #f1f2f5;
+}
+
+.ic-card button.ic-primary {
+  background: #2541b2;
+  border-color: #2541b2;
+  color: #ffffff;
+}
+
+.ic-card button.ic-primary:hover:not(:disabled) {
+  background: #1f3694;
+}
+
+.ic-card button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ic-card button:focus-visible,
+.ic-field input:focus-visible {
+  outline: 2px solid #2541b2;
+  outline-offset: 2px;
+}
+
+.ic-pill {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1f2f5;
+  color: #40434d;
+  white-space: nowrap;
+}
+
+.ic-pill-open {
+  background: #e7edfb;
+  color: #2541b2;
+}
+
+.ic-pill-closed,
+.ic-pill-verified {
+  background: #e3f3ea;
+  color: #1e7a4c;
+}
+
+.ic-pill-halted {
+  background: #fbe7e6;
+  color: #b3261e;
+}
+
+.ic-winner {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: #12141c;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.ic-winner span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.ic-halt {
+  background: #fbe7e6;
+  color: #b3261e;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.ic-halt ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.ic-scroll {
+  overflow-x: auto;
+}
+
+.integrity table.ic-table {
+  width: 100%;
+  margin: 0;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.integrity .ic-table th,
+.integrity .ic-table td {
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.ic-mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: #40434d;
+}
+
+.ic-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ic-log li {
+  display: grid;
+  grid-template-columns: 56px 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  font-size: 14px;
+  color: #40434d;
+}
+
+.ic-log strong {
+  color: #12141c;
+}
+
+.ic-code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 4px;
+}
+
+.ic-code.ok {
+  background: #e3f3ea;
+  color: #1e7a4c;
+}
+
+.ic-code.bad {
+  background: #fbe7e6;
+  color: #b3261e;
+}
+
+@media (max-width: 600px) {
+  .ic-log li {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .ic-log li span:last-child {
+    grid-column: 2;
+  }
+}
+
+.console-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 32px 0;
+  background: #ffffff;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+.console-tabs button {
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 600 14px "Inter", system-ui, sans-serif;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.console-tabs button[aria-selected="true"] {
+  color: #2541b2;
+  border-bottom-color: #2541b2;
+}

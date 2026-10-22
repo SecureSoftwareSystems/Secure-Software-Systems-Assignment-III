@@ -21,6 +21,19 @@ npm run demo                      # in a second terminal: synthetic ballot feed 
 
 The service refuses to start if either secret is missing or shorter than 32 characters.
 
+## Run with the staff console (GUI)
+
+The **Count & Audit** tab in `services/auth-access-control/frontend` drives this service through the Vite proxy (`/api/integrity` → port 4002), using the same login token as every other service.
+
+```bash
+node scripts/setup-local-env.js                                  # once, from the repo root
+cd services/auth-access-control && npm run build && node --env-file=.env dist/server.js
+cd services/vote-integrity && npm run dev
+cd services/auth-access-control/frontend && npm run dev          # open http://localhost:5173
+```
+
+Demo accounts: `admin`, `delegate1`, `auditor1` (password `ChangeMe123!`). As admin: open the contest, submit the sample ballots, reuse a ticket (409), send an invalid ballot (400), close intake. As auditor: try **Run count** (403), then **Verify chain**. As delegate: **Run count** shows the VERIFIED result round by round.
+
 ## API
 
 All routes except `/health` need `Authorization: Bearer <JWT>` (HS256, `role` = admin | delegate | auditor).
