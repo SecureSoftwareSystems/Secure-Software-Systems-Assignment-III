@@ -6,6 +6,8 @@
   "scripts": {
     "test": "jest",
     "backup:tally": "ts-node scripts/backup-tally.ts",
+    "demo:seed": "ts-node scripts/demo-seed.ts",
+    "demo:alert": "ts-node scripts/demo-alert.ts",
     "dev": "ts-node src/server.ts","start": "node dist/server.js"
   },
   "keywords": [],
