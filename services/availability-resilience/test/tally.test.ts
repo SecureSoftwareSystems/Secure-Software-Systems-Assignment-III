@@ -5,8 +5,7 @@ import path from 'path';
 import { openTallyDb, TallyDb } from '../src/db/tallyDb';
 import { createApp } from '../src/app';
 
-// Stand-in RBAC so these tests don't depend on Rita's login/JWT setup.
-// The role comes from an x-test-role header.
+
 jest.mock('../src/rbac', () => {
   const make = (allowed: string[]) => (req: any, res: any, next: any) => {
     const role = req.header('x-test-role');

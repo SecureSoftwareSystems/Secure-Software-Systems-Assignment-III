@@ -20,7 +20,6 @@ export interface ExclusionActions {
     decided_at : string | null;
 }
 
-// creates or opens the SQLite database and applies the schema
 export function createDb(path: string = ":memory:"): Database.Database {
   const db = new Database(path);
   db.pragma("journal_mode = WAL");

@@ -10,12 +10,10 @@ import {
   MakerCheckerError,
 } from "./makerChecker";
 
-/** Builds the Express app against a given database instance (so tests can inject an in-memory DB). */
 export function createApp(db: Database.Database): Express {
   const app = express();
   app.use(express.json());
 
-  // --- Auth -------------------------------------------------------------
   app.post("/auth/login", (req, res) => {
     const { username, password } = req.body ?? {};
     if (!username || !password) {
@@ -26,8 +24,6 @@ export function createApp(db: Database.Database): Express {
     return res.status(200).json({ token });
   });
 
-  // --- Exclusion / recount actions (SR-08 + SR-15) -----------------------
-  // Create: admin or delegate only (auditor is read-only — least privilege).
   app.post(
     "/exclusions",
     authMiddleware,
@@ -42,7 +38,6 @@ export function createApp(db: Database.Database): Express {
     }
   );
 
-  // Read: admin, delegate and auditor can all view (auditor needs visibility to do their job).
   app.get(
     "/exclusions",
     authMiddleware,
@@ -52,7 +47,6 @@ export function createApp(db: Database.Database): Express {
     }
   );
 
-  // Approve / reject: admin or delegate only — but never the original maker (enforced inside makerChecker.ts).
   app.post(
     "/exclusions/:id/approve",
     authMiddleware,
@@ -89,7 +83,6 @@ function handleMakerCheckerError(err: unknown, res: Response) {
     const statusByCode = { NOT_FOUND: 404, ALREADY_DECIDED: 409, SELF_APPROVAL_FORBIDDEN: 403 } as const;
     return res.status(statusByCode[err.code]).json({ error: err.message });
   }
-  // eslint-disable-next-line no-console
   console.error(err);
   return res.status(500).json({ error: "Internal server error" });
 }

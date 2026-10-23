@@ -5,7 +5,6 @@ import { countIrvEngineA } from './irvEngineA';
 import { countIrvEngineB } from './irvEngineB';
 import { CountInputError, type CountingEngine, type CountResult } from './types';
 
-// SR-10: a result is released only if both engines agree on everything.
 
 export interface Comparison {
   match: boolean;

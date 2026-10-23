@@ -1,16 +1,10 @@
-/**
- * Configuration from environment variables only (SR-16). The service fails
- * closed: a missing or weak secret, or a missing release time, stops it starting.
- */
+
 export interface Config {
   port: number;
   jwtSigningKey: string;
-  /** Results are withheld from the public until this instant (SR-11). */
   releaseAt: Date;
   voteIntegrityUrl: string;
-  /** Number of reverse-proxy hops in front of the service (SR-13), so rate limiting sees the real client IP. */
   trustProxy: number;
-  /** AES-256 key for personal data at rest (SR-20), 64 hex characters. */
   dataEncryptionKey: string;
   dbPath: string;
 }
@@ -32,7 +26,6 @@ function requireHexKey(env: NodeJS.ProcessEnv, name: string): string {
 }
 
 export function parseReleaseAt(raw: string | undefined): Date {
-  // Require a full ISO-8601 timestamp with an explicit offset, so "9am" can't mean different things on different servers.
   if (!raw || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(raw)) {
     throw new Error('RESULTS_RELEASE_AT must be an ISO-8601 time with a timezone, e.g. 2026-10-24T18:00:00+11:00');
   }

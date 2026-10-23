@@ -45,6 +45,6 @@ describe("Authentication (supports SR-01 context + SR-17 session expiry)", () =>
     const { db } = setup();
     const row = db.prepare("SELECT password_hash FROM users WHERE username = ?").get("delegate1") as { password_hash: string };
     expect(row.password_hash).not.toBe("correct-horse-battery-staple");
-    expect(row.password_hash.startsWith("$2")).toBe(true); // bcrypt hash prefix ($2a$/$2b$)
+    expect(row.password_hash.startsWith("$2")).toBe(true); 
    });
 });

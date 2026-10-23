@@ -4,7 +4,6 @@ export type RandomIntFn = (maxExclusive: number) => number;
 
 const secureRandomInt: RandomIntFn = (maxExclusive) => randomInt(maxExclusive);
 
-// Unbiased Fisher-Yates shuffle driven by crypto.randomInt (SR-03).
 export function fisherYatesShuffle<T>(items: readonly T[], rand: RandomIntFn = secureRandomInt): T[] {
   const out = items.slice();
   for (let i = out.length - 1; i > 0; i--) {

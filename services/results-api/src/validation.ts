@@ -1,20 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { z, type ZodTypeAny } from 'zod';
 
-/**
- * SR-18 — server-side input validation.
- *
- * Every route declares what it accepts (query string, path parameters,
- * headers, body) as zod schemas. Anything else is rejected with 400 before
- * the route's logic runs:
- *   - unknown fields and unknown query parameters are rejected (.strict()),
- *     so callers can't smuggle in options the code doesn't expect;
- *   - lengths and character sets are bounded;
- *   - validated, typed values replace the raw ones, so handlers only ever
- *     see checked data.
- * Data from other services is validated the same way (upstreamResultSchema):
- * it is input too.
- */
+
 
 export interface RouteSchemas {
   query?: ZodTypeAny;
@@ -23,12 +10,7 @@ export interface RouteSchemas {
   headers?: ZodTypeAny;
 }
 
-/**
- * One issue as a short message. Messages that would quote the caller's input
- * (unknown key names, invalid enum values) are replaced with generic ones, so
- * nothing the caller sent is reflected back (no reflected XSS via error bodies).
- * Only paths from our own schema are included.
- */
+
 export function describeIssue(part: string, i: z.ZodIssue): string {
   if (i.code === 'unrecognized_keys') return `${part}: unexpected field(s) not allowed`;
   const path = i.path.length && i.code !== 'invalid_enum_value' ? '.' + i.path.join('.') : '';
@@ -59,11 +41,9 @@ export function validate(schemas: RouteSchemas) {
     check('headers', req.headers);
 
     if (issues.length > 0) {
-      // Describe what was wrong without echoing the caller's input back.
       res.status(400).json({ error: 'invalid request', issues: issues.slice(0, 10) });
       return;
     }
-    // Express 4 lets us replace these with the validated, typed versions.
     req.query = query as Request['query'];
     req.params = params as Request['params'];
     req.body = body;
@@ -71,7 +51,6 @@ export function validate(schemas: RouteSchemas) {
   };
 }
 
-/** Optional Authorization header: if present it must look like a bearer token, and be of sane length. */
 export const authHeaderSchema = z
   .object({
     authorization: z
@@ -80,12 +59,10 @@ export const authHeaderSchema = z
       .regex(/^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'authorization must be "Bearer <jwt>"')
       .optional(),
   })
-  .passthrough(); // other headers (user-agent, accept, ...) are not ours to police
-
+  .passthrough(); 
 const candidateName = z.string().min(1).max(64);
 const hex64 = z.string().regex(/^[0-9a-f]{64}$/);
 
-/** Shape of a verified result coming back from vote-integrity. */
 export const upstreamResultSchema = z
   .object({
     id: z.number().int().optional(),

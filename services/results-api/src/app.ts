@@ -15,7 +15,6 @@ export interface AppDeps {
   releaseAt: Date;
   now?: () => Date;
   trustProxy?: number;
-  /** Requests per minute per client. Lowered in tests. */
   limits?: { public: number; privileged: number; feed?: number };
 }
 
@@ -30,26 +29,20 @@ export function createApp({
 }: AppDeps) {
   const app = express();
   app.disable('x-powered-by');
-  // Behind the TLS proxy (SR-13), trust exactly that many hops so rate limiting keys on the real client IP.
   app.set('trust proxy', trustProxy);
-  // SR-18: flat query strings only. The default parser turns ?a[b]=1 into nested
-  // objects, a common route to prototype pollution and type confusion.
   app.set('query parser', 'simple');
   app.use(express.json({ limit: '10kb', strict: true }));
 
   const isReleased = () => now().getTime() >= releaseAt.getTime();
 
-  // Check the hash on every result before it leaves this service, whatever the source.
   const latestVerified = async (): Promise<VerifiedResult | null> => {
     const v = await source.latest();
     if (!v) return null;
-    // SR-18: the upstream response is input too. Check its shape, then its hash.
     const shape = upstreamResultSchema.safeParse(v);
     if (!shape.success) throw new IntegrityError('result from vote-integrity is malformed');
     return assertIntegrity(v);
   };
 
-  // ---- SR-11 rate limiting: one budget per client IP, standard RateLimit headers, JSON 429 ----
   const limiter = (limit: number, keyGenerator?: (req: Request) => string) =>
     rateLimit({
       windowMs: 60_000,
@@ -68,7 +61,6 @@ export function createApp({
     res.json({ status: 'ok' });
   });
 
-  // ---- SR-11 public results: release-time gated, public scope only ----
   app.get('/public/results', publicLimiter, validate({ query: noQuery }), async (_req, res, next) => {
     try {
       if (!isReleased()) {
@@ -89,7 +81,6 @@ export function createApp({
     }
   });
 
-  // ---- SR-11 privileged scope: scrutineers and auditors may verify before release ----
   const { authenticate: auth, requireRole } = createServiceAuth(jwtSigningKey);
   app.get(
     '/results/full',
@@ -112,7 +103,6 @@ export function createApp({
     },
   );
 
-  // ---- SR-20 registered API clients (admin only) ----
   const safeText = z.string().trim().min(1).max(100).regex(/^[\p{L}\p{N} .,'&()-]+$/u, 'letters, digits and basic punctuation only');
   const newClientSchema = z
     .object({ name: safeText, organisation: safeText, contactEmail: z.string().trim().toLowerCase().email().max(254) })
@@ -139,7 +129,6 @@ export function createApp({
     res.status(204).end();
   });
 
-  // ---- SR-11 + SR-20 full results feed for registered clients, after release only ----
   const apiKeyHeader = z.object({ 'x-api-key': z.string().regex(/^rk_[A-Za-z0-9_-]{43}$/, 'invalid API key format') }).passthrough();
   app.get(
     '/results/feed',
@@ -185,7 +174,6 @@ export function createApp({
       return;
     }
     if (err instanceof IntegrityError) {
-      // Never publish a result that doesn't match its hash.
       console.error('[results-api] integrity check failed');
       res.status(502).json({ error: 'result failed integrity check; not published' });
       return;
@@ -194,8 +182,6 @@ export function createApp({
       res.status(503).json({ error: 'results temporarily unavailable' });
       return;
     }
-    // Body-parser errors (bad JSON, too large, wrong charset) carry their own 4xx status:
-    // answer with that status instead of a 500.
     const status = (err as { status?: number; type?: string } | null)?.status;
     if (typeof status === 'number' && status >= 400 && status < 500) {
       const type = (err as { type?: string }).type;

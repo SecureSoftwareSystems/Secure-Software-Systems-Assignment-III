@@ -1,17 +1,6 @@
 import Database from "better-sqlite3";
 import { ExclusionActions } from "./db";
 
-/**
- * SR-08 — Maker-checker (dual control) for recount/exclusion actions.
- *
- * This is the direct fix for T8 (Recount Console Privilege Abuse) from
- * Assignment One: Part 1 found that RBAC alone does not stop a single
- * compromised or rogue, correctly-scoped delegate account from acting alone.
- * RBAC (rbac.ts) answers "is this role allowed to touch exclusions at all?";
- * this module separately answers "has a *second, different* authenticated
- * person independently reviewed this specific action?" — the two controls
- * are intentionally layered, not merged into one check.
- */
 
 export class MakerCheckerError extends Error {
   constructor(message: string, public code: "NOT_FOUND" | "ALREADY_DECIDED" | "SELF_APPROVAL_FORBIDDEN") {
@@ -48,8 +37,7 @@ function decide(db: Database.Database, id: number, checkerId: number, outcome: "
     throw new MakerCheckerError(`Exclusion action ${id} has already been ${action.status}`, "ALREADY_DECIDED");
   }
 
-  // The core dual-control invariant: the checker can never be the maker.
-  // This is the one line that actually stops T8 — everything else is bookkeeping.
+
   if (action.maker_id === checkerId) {
     throw new MakerCheckerError(
       "A delegate cannot approve or reject their own exclusion action (self-approval is forbidden)",

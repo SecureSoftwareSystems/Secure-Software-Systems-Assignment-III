@@ -33,13 +33,7 @@ export function createUser(db: Database.Database, username: string, password: st
   return db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid) as Users;
 }
 
-/**
- * SR-01 (analysis-only in this prototype): voter MFA is out of scope for the
- * Vote Counting & Tabulation subsystem. This login function is for the
- * delegate/admin/auditor console only, and is deliberately simple (password +
- * short-lived JWT). A production recount console would add a second factor
- * here too (see the Part One write-up for SR-01's rationale).
- */
+
 export function login(db: Database.Database, username: string, password: string): string | null {
   const user = db.prepare("SELECT * FROM users WHERE username = ?").get(username) as Users | undefined;
   if (!user) return null;
