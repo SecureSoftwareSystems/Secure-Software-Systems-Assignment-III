@@ -34,7 +34,7 @@ describe("Maker-checker dual control (SR-08 — the direct fix for T8)", () => {
 
     const res = await request(app)
       .post(`/exclusions/${created.body.id}/approve`)
-      .set("Authorization", `Bearer ${maker}`); // same delegate trying to self-approve
+      .set("Authorization", `Bearer ${maker}`); 
 
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/self-approval/i);

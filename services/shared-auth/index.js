@@ -3,7 +3,6 @@
 const ROLES = Object.freeze(['admin', 'delegate', 'auditor']);
 const MIN_KEY_LENGTH = 32;
 
-// Fail closed: no default key, and short keys are refused (SR-16).
 function requireSigningKey(key, name = 'JWT_SIGNING_KEY') {
   if (typeof key !== 'string' || key.length < MIN_KEY_LENGTH) {
     throw new Error(`${name} must be set and at least ${MIN_KEY_LENGTH} characters (see .env.example)`);
@@ -25,7 +24,6 @@ function createAuth(options) {
     }
     let payload;
     try {
-      // HS256 pinned, so a token cannot choose "none" or another algorithm.
       payload = jwt.verify(parts[1], key, { algorithms: ['HS256'] });
     } catch (_err) {
       res.status(401).json({ error: 'Invalid or expired session' });

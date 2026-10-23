@@ -1,16 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
-/**
- * SR-20 — encryption at rest for personal data fields.
- *
- * AES-256-GCM (authenticated encryption) with:
- *   - a 256-bit key from DATA_ENCRYPTION_KEY, held in the secrets store (SR-16), never in code or the database;
- *   - a fresh random 96-bit IV for every encryption, so the same email encrypts differently each time;
- *   - the row id as additional authenticated data (AAD), so a ciphertext copied into another row won't decrypt;
- *   - the GCM tag checked on decrypt, so any change to the stored value is detected, not silently accepted.
- *
- * Stored format: "v1:" + base64(iv | tag | ciphertext). The version prefix allows key rotation later.
- */
 
 const VERSION = 'v1';
 const IV_BYTES = 12;

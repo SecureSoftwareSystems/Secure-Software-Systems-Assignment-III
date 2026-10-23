@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { DB } from './db';
 import { prepareForCounting, type AnonymousBallot, type RandomIntFn } from './shuffle/shuffle';
 
-// SR-03: no timestamp, voter or IP column and WITHOUT ROWID, so arrival order is not stored.
 export function initBallots(db: DB): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS ballots (

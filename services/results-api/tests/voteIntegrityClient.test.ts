@@ -5,7 +5,6 @@ import jwt from 'jsonwebtoken';
 import { IntegrityError, VoteIntegrityClient } from '../src/resultsSource';
 import { JWT_KEY, verified } from './helpers';
 
-/** A stand-in vote-integrity service on a random local port. */
 function fakeVoteIntegrity(handler: express.RequestHandler): Promise<{ url: string; server: Server }> {
   const app = express();
   app.get('/results/latest', handler);

@@ -1,15 +1,6 @@
 import { createHash } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 
-/**
- * Where verified results come from: the vote-integrity service's
- * GET /results/latest, which only ever holds results both counting
- * engines agreed on (SR-10).
- *
- * The results API never trusts the response blindly: it recomputes the
- * SHA-256 hash of the result and refuses to publish anything whose hash
- * doesn't match the one recorded at count time (integrity in transit).
- */
 
 export interface RoundResult {
   round: number;
@@ -32,14 +23,12 @@ export interface VerifiedResult {
 }
 
 export interface ResultsSource {
-  /** The latest verified result, or null if nothing has been counted yet. */
   latest(): Promise<VerifiedResult | null>;
 }
 
 export class IntegrityError extends Error {}
 export class SourceUnavailableError extends Error {}
 
-/** Same canonical JSON as vote-integrity, so the hashes line up. */
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(sortKeys(value));
 }
@@ -72,7 +61,6 @@ export class VoteIntegrityClient implements ResultsSource {
   async latest(): Promise<VerifiedResult | null> {
     if (this.cached && Date.now() - this.cached.at < this.cacheMs) return this.cached.value;
 
-    // Short-lived service token with the read-only auditor role (least privilege).
     const token = jwt.sign({ sub: 'svc:results-api', role: 'auditor', username: 'svc:results-api' }, this.jwtSigningKey, {
       algorithm: 'HS256',
       expiresIn: 60,
